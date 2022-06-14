@@ -1,0 +1,29 @@
+# Example parameter file for 
+# calculating the components of the covariance matrix
+# for estimating errors in parameters obtained through BNEW analysis
+
+# want to calculate components of covariance matrix
+ACTION getcovarmat
+
+# output result to this file
+OUTFILE covar.t30.txt
+
+# use a 3rd-order SVG wavelet
+WAVETYPE SVG
+DEG 3
+
+# correlation time
+TAU 30
+
+# assume tracks of length 200
+TRACKLEN 200
+
+# maximal wavelet span
+NMAX 15
+
+# Save matrices for individual Q to file 
+SAVEHMATFILE T covar.t30.Q#.bin
+
+# load precalculated matrices from file (if they exist)
+# this speeds up calculations using different track lengths for the same correlation time
+HMATFROMFILE T 

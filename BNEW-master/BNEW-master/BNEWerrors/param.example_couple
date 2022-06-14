@@ -1,0 +1,27 @@
+# Example parameter file for 
+# calculating the components of the covariance matrix
+# for estimating errors in parameters obtained through BNEW analysis
+
+# want to calculate components of covariance matrix
+ACTION getdriftcouplemat
+
+# output result to this file
+OUTFILE couple.t30.t10.txt
+
+# use a 3rd-order SVG wavelet
+WAVETYPE SVG
+DEG 3
+
+# correlation time
+TAU 30 10
+
+# assume tracks of length 200
+TRACKLEN 200
+
+# maximal wavelet span
+NMAX 15
+
+# load precalculated matrices from file (if they exist)
+# this speeds up calculations using different track lengths for the same correlation time
+HMATFROMFILE T covar.t30.Q#.bin covar.t10.Q#.bin
+

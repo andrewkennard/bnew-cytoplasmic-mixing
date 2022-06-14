@@ -1,0 +1,37 @@
+The following describes the procedure for getting and analyzing data on rheology within motile cells:
+
+1) Obtain lysotracker-labelled images, saved as tiff stacks.
+(Talk to Caleb about detailed procedure)
+
+It is assumed that all the data for a single movie of a single cell is saved in one directory that contains a metadata file and several sequential tiff stacks (labelled *Cell#*.ome.tif, *Cell#*_1.ome.tif, *Cell#*_2.ome.tif, etc., where # is some index number for that movie).
+
+It is possible to process multiple movies at once in a semi-automated manner.
+
+2) Get the analysis code from the git server
+Refer to the git-primer on how to do this
+You will need the following repositories:
+
+/Users/git/repositories/BNEW.git
+(code for performing BNEW analysis on a set of trajectories, to get effective diffusion coefficient, scaling, etc.)
+
+/Users/git/repositories/particleTrackMotile.git
+(code for processing image stacks, tracking particles, etc.)
+
+3) The procedure for processing the microscopy movies is semi-automated. Open up the matlab script file examples/process_example.m which will take you through all the steps. Step through this script using matlab's "cell mode" to carry out each step of the procedure.
+
+4) Set up the general parameter values at the top of the script (things like location of your image files, name you want to use for your processed cells, etc.)
+
+5) The first analysis step -- segmentation of the cell contour based on background lysotracker fluorescence -- is intervention heavy. It is recommended that you go through each of the movies you plan to process and manually adjust the parameters for segmentation. There is a graphical interface (called tuneSegmentationParams) for doing this part. Call the GUI as indicated in the process_example.m file
+
+6) Once you've saved the segmentation parameter data for each movie, the remaining steps can be run automatically for many movies without human intervention (in principle). In practice, things can occasionally go wrong, so it's good to keep an eye on what the code is doing. If you haven't run this before, you should definitely go through and do each step manually. Again, use MATLAB's cell mode to break it up into manageable chunks.
+
+Ultimately, you will have a file called example15_1.mat or similar (indicating cell 1 segmented from movie 15). This will contain a cell object CL, which has a lot of data and methods attached to it.
+
+Try viewing a snapshot with CL.viewFrame(1);
+
+CL.Wavelet contains a BNEW analysis object that has the results of the BNEW analysis. Try CL.Wavelet.plotRescaled('kmax',0.74); to plot the rescaled MSD
+
+CL.Wavelet.Dfit lists the fitted parameters in order:
+		1) diffusion coefficient (units of px^2/sec)
+		2) localization error (units of px)
+		3) scaling coefficient (alpha)

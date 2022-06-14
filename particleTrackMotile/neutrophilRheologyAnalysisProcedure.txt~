@@ -1,0 +1,17 @@
+The following describes the procedure for getting and analyzing data on rheology within motile cells:
+
+1) Obtain lysotracker-labelled images, saved as tiff stacks.
+(Talk to Caleb about detailed procedure)
+It is assumed that all the data for a single movie of a single cell is saved in one directory that contains a metadata file and several sequential tiff stacks (labelled *Cell#*.ome.tif, *Cell#*_1.ome.tif, *Cell#*_2.ome.tif, etc., where # is some index number for that movie).
+
+2) Get the analysis code from the git server
+Refer to the git-primer on how to do this
+You will need the following repositories:
+
+/Users/git/repositories/BNEW.git
+(code for performing BNEW analysis on a set of trajectories, to get effective diffusion coefficient, scaling, etc.)
+
+/Users/git/repositories/particleTrackMotile.git
+(code for processing image stacks, tracking particles, etc.)
+
+3) 

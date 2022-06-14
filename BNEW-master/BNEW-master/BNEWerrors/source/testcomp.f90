@@ -1,0 +1,290 @@
+! subroutines to test comparison to old code
+
+PROGRAM MAIN
+  USE WAVELETUTIL  
+  USE KEYS
+  USE INDEXARRAYS
+  IMPLICIT NONE
+
+  ! read in keyword arguments
+  CALL READKEY
+
+  CALL SETUPINDEXARRAYS(KSCL,NMAX)
+
+  !CALL TESTWS
+  !CALL TESTCOV4U
+  !CALL TESTHUMATQ
+  !CALL TESTFUMATQ
+  !CALL TESTCORRVXI
+  !CALL TESTCOVARMAT
+  CALL TESTDRIFTCOUPLE
+
+CONTAINS
+  SUBROUTINE TESTDRIFTCOUPLE
+    ! test coupling between two drift velocities
+    USE COVARUTIL
+    IMPLICIT NONE
+    INTEGER :: A1, A2
+    DOUBLE PRECISION :: FU1U2MAT(AIMAX,AIMAX)
+
+    CALL GETDRIFTCOUPLINGMAT(NMAX,DEG,WAVETYPE,DEL,DEL2,TRACKLEN,FU1U2MAT)
+    
+    DO A1 = 5,10
+       DO A2 = 10,15
+          PRINT*, A1, A2, FU1U2MAT(A1,A2)
+       ENDDO
+    ENDDO
+  END SUBROUTINE TESTDRIFTCOUPLE
+
+  SUBROUTINE TESTCOVARMAT
+    ! test overall covariance matrices
+    USE COVARUTIL
+    IMPLICIT NONE
+    INTEGER :: A1, A2
+    DOUBLE PRECISION :: HUMAT(AIMAX,AIMAX), HVMAT(AIMAX,AIMAX), &
+    & HLMAT(AIMAX,AIMAX), FUVMAT(AIMAX,AIMAX),FULMAT(AIMAX,AIMAX),&
+    & FVLMAT(AIMAX,AIMAX),AVALS(AIMAX),BVALS(AIMAX),FVALS(AIMAX)
+
+    CALL GETALLCOVMATS(NMAX,DEG,WAVETYPE,DEL,TRACKLEN,&
+         & HMATFROMFILE,SAVEHMATFILE,HMATFILE,HUMAT,HVMAT,HLMAT,FUVMAT,FULMAT,FVLMAT,AVALS,BVALS,FVALS)
+
+    DO A1 = 5,10
+       DO A2 = 10,15
+          PRINT*, A1, A2, HUMAT(A1,A2), HVMAT(A1,A2), HLMAT(A1,A2)
+       ENDDO
+    ENDDO
+
+    PRINT*, 'Writing COVMAT to file:', TRIM(ADJUSTL(OUTFILE))
+    OPEN(UNIT=88,FILE=OUTFILE,STATUS='UNKNOWN')
+    WRITE(88,*) NMAX
+    WRITE(88,*) NKMAX
+    DO A1 = 1,AIMAX
+       WRITE(88,*) HUMAT(A1,:)
+    ENDDO
+    DO A1 = 1,AIMAX
+       WRITE(88,*) HVMAT(A1,:)
+    ENDDO
+    DO A1 = 1,AIMAX
+       WRITE(88,*) HLMAT(A1,:)
+    ENDDO
+    DO A1 = 1,AIMAX
+       WRITE(88,*) FUVMAT(A1,:)
+    ENDDO
+    DO A1 = 1,AIMAX
+       WRITE(88,*) FULMAT(A1,:)
+    ENDDO
+    DO A1 = 1,AIMAX
+       WRITE(88,*) FVLMAT(A1,:)
+    ENDDO
+    WRITE(88,*) AVALS
+    WRITE(88,*) BVALS
+    WRITE(88,*) FVALS
+    CLOSE(88)
+  END SUBROUTINE TESTCOVARMAT
+
+   SUBROUTINE TESTFUMATQ
+    ! test calculations of 4-pt drift covariance matrix
+    USE COVARUTIL
+    IMPLICIT NONE
+    DOUBLE PRECISION, ALLOCATABLE :: EVEC(:),EMAT(:,:)
+    DOUBLE PRECISION, ALLOCATABLE :: ALLVELC(:,:),ALLPOSC(:,:)
+    DOUBLE PRECISION :: FUMAT(AIMAX,AIMAX)
+    INTEGER :: Q,  JMAX, QMAX, EMAX, A1, A2, JC, IC
+    CHARACTER*100 :: FNAME
+    
+    
+    ! maximal separation between adjusted MSD time points
+    QMAX = TRACKLEN-1-2*DEG
+    ! maximal time separation that will end up in exponential
+    EMAX = MAXKMAX+2*NMAX+1+QMAX 
+    ! Set up exponential arrays
+    ALLOCATE(EVEC(EMAX+1),EMAT(EMAX+1,EMAX+1))
+    CALL SETUPEXPARRAYS(EMAX, DEL,EVEC,EMAT)
+
+    ! maximal index for wavelet coefficients
+    JMAX = MAXKMAX+2*NMAX-1 
+    ALLOCATE(ALLVELC(JMAX,AIMAX), ALLPOSC(JMAX+1,AIMAX)) 
+    ! get wavelet coefficients
+    CALL GETALLCOEFF(NMAX,DEG,WAVETYPE,ALLVELC,ALLPOSC,NKMAX,NISTART,AIMAX,JMAX)
+    
+    
+    FNAME = 'fumat_new.txt'       
+    OPEN(UNIT=99,FILE=FNAME,STATUS='UNKNOWN')
+    DO Q = 0,3
+       CALL GETFUMATQ(Q,JMAX,EMAX,ALLVELC,EVEC,FUMAT)
+       
+       WRITE(99,*) fUMAT
+       DO A1 = 1,3
+          DO A2 = 1,3
+             PRINT*, Q, A1, A2, FUMAT(A1,A2)
+          ENDDO
+       ENDDO
+       
+    ENDDO
+    CLOSE(99)
+
+    DEALLOCATE(EVEC,EMAT,ALLVELC,ALLPOSC)
+  END SUBROUTINE TESTFUMATQ
+
+  SUBROUTINE TESTCORRVXI
+    ! test calculations of 4-pt covariance for diffusion and localization error
+    USE COVARUTIL
+    IMPLICIT NONE   
+    DOUBLE PRECISION, ALLOCATABLE :: ALLVELC(:,:),ALLPOSC(:,:)
+    DOUBLE PRECISION :: HLMAT(AIMAX,AIMAX), HVMAT(AIMAX,AIMAX),FVMAT(AIMAX,AIMAX),FLMAT(AIMAX,AIMAX)
+    INTEGER :: Q,  JMAX, A1, A2, JC, IC
+    CHARACTER*100 :: FNAME       
+
+    ! maximal index for wavelet coefficients
+    JMAX = MAXKMAX+2*NMAX-1 
+    ALLOCATE(ALLVELC(JMAX,AIMAX), ALLPOSC(JMAX+1,AIMAX)) 
+    ! get wavelet coefficients
+    CALL GETALLCOEFF(NMAX,DEG,WAVETYPE,ALLVELC,ALLPOSC,NKMAX,NISTART,AIMAX,JMAX) 
+    
+    FNAME = 'hvlmat_new.txt'       
+    OPEN(UNIT=99,FILE=FNAME,STATUS='UNKNOWN')
+    DO Q = 0,3
+       CALL GETCORRVXI(Q,NMAX,ALLVELC,ALLPOSC,HVMAT,HLMAT,FVMAT,FLMAT)
+       
+       WRITE(99,*) HVMAT
+       WRITE(99,*) HLMAT
+       WRITE(99,*) FVMAT
+       WRITE(99,*) FLMAT
+
+       DO A1 = 1,3
+          DO A2 = 1,3
+             PRINT*, Q, A1, A2, HVMAT(A1,A2), HLMAT(A1,A2), FVMAT(A1,A2),FLMAT(A1,A2)
+          ENDDO
+       ENDDO
+       
+    ENDDO
+    CLOSE(99)
+
+    DEALLOCATE(ALLVELC,ALLPOSC)
+  END SUBROUTINE TESTCORRVXI
+
+  SUBROUTINE TESTHUMATQ
+    ! test calculations of 4-pt drift covariance matrix
+    USE COVARUTIL
+    IMPLICIT NONE
+    DOUBLE PRECISION, ALLOCATABLE :: EVEC(:), ELIST(:), EVEC3(:),EMAT(:,:)
+    DOUBLE PRECISION, ALLOCATABLE :: ALLVELC(:,:),ALLPOSC(:,:), CVELMAT(:,:)
+    DOUBLE PRECISION :: HUMAT(AIMAX,AIMAX)
+    INTEGER :: Q,  JMAX, QMAX, EMAX, A1, A2, JC, IC
+    CHARACTER*100 :: FNAME
+    
+    
+    ! maximal separation between adjusted MSD time points
+    QMAX = TRACKLEN-1-2*DEG
+    ! maximal time separation that will end up in exponential
+    EMAX = MAXKMAX+2*NMAX+1+QMAX 
+    ! Set up exponential arrays
+    ALLOCATE(EVEC(EMAX+1),EMAT(EMAX+1,EMAX+1))
+    CALL SETUPEXPARRAYS(EMAX, DEL,EVEC,EMAT)
+
+    ! maximal index for wavelet coefficients
+    JMAX = MAXKMAX+2*NMAX-1 
+    ALLOCATE(ALLVELC(JMAX,AIMAX), ALLPOSC(JMAX+1,AIMAX),CVELMAT(JMAX*JMAX,AIMAX)) 
+    ! get wavelet coefficients
+    CALL GETALLCOEFF(NMAX,DEG,WAVETYPE,ALLVELC,ALLPOSC,NKMAX,NISTART,AIMAX,JMAX)
+    ! linearized array of pairs of coefficients
+    DO IC = 1,JMAX
+       DO JC = 1,JMAX             
+          CVELMAT(JMAX*(IC-1)+JC,:) = ALLVELC(IC,:)*ALLVELC(JC,:)         
+       ENDDO
+    ENDDO        
+    
+    FNAME = 'Hmat_new.txt'       
+    OPEN(UNIT=99,FILE=FNAME,STATUS='UNKNOWN')
+    DO Q = 0,5
+       CALL GETHUMATQ(Q,NMAX,JMAX,EMAX,EVEC,EMAT,CVELMAT,HUMAT)
+       
+       WRITE(99,*) HUMAT
+       DO A1 = 1,5
+          DO A2 = 1,5
+             PRINT*, Q, A1, A2, HUMAT(A1,A2)
+          ENDDO
+       ENDDO
+       
+    ENDDO
+    CLOSE(99)
+
+    DEALLOCATE(EVEC,EMAT,ALLVELC,ALLPOSC,CVELMAT)
+  END SUBROUTINE TESTHUMATQ
+
+  SUBROUTINE TESTCOV4U
+    ! test calculations of 4-pt drift covariance matrix
+
+    USE COVARUTIL
+    IMPLICIT NONE
+    INTEGER :: JMAX,QMAX,EMAX, IC, A1,A2,Q
+    DOUBLE PRECISION, ALLOCATABLE :: EVEC(:),EMAT(:,:),COV4U(:,:)
+    CHARACTER*100 :: FNAME
+
+    JMAX = 2*NMAX+MAXKMAX-1
+    ! maximal separation between adjusted MSD time points
+    QMAX = TRACKLEN-1-2*DEG
+    ! maximal time separation that will end up in exponential
+    EMAX = MAXKMAX+2*NMAX+1+QMAX 
+    ! Set up exponential arrays
+    ALLOCATE(EVEC(EMAX+1),EMAT(EMAX+1,EMAX+1),COV4U(JMAX*JMAX,JMAX*JMAX))
+    
+    CALL SETUPEXPARRAYS(EMAX, DEL,EVEC,EMAT)
+    
+    PRINT*, 'TESTXA:', EVEC(1)
+    FNAME = 'HImat_new.txt'       
+    OPEN(UNIT=99,FILE=FNAME,STATUS='UNKNOWN')
+    DO Q = 0,3
+       CALL GETCOV4UMAT(Q,NMAX,JMAX,EMAX,EVEC,EMAT,COV4U)
+       
+       DO IC = 1,3
+          WRITE(99,*) COV4U(JMAX*(IC-1)+1:JMAX*(IC-1)+10,1:10)
+          DO A1 = 1,3
+             DO A2 = 1,3
+                PRINT*, Q, IC,A1, A2, COV4U(JMAX*(IC-1)+A1,A2)
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO    
+    CLOSE(99)
+
+    DEALLOCATE(EVEC,EMAT,COV4U)
+  END SUBROUTINE TESTCOV4U
+
+  SUBROUTINE TESTWS
+    ! test different wavelet coefficient definitions
+    USE INDEXARRAYS, ONLY : NKMAX, NISTART, AIMAX,MAXKMAX
+    IMPLICIT NONE
+    DOUBLE PRECISION, DIMENSION(AIMAX) :: AVALS,BVALS
+    DOUBLE PRECISION, ALLOCATABLE :: ALLVELC(:,:), ALLPOSC(:,:)
+    INTEGER :: KMAX, JMAX, AC, J
+    CHARACTER*100 :: FNAME
+
+    KMAX = MAXKMAX
+    JMAX = KMAX+2*NMAX-1 
+    ALLOCATE(ALLVELC(JMAX,AIMAX), ALLPOSC(JMAX+1,AIMAX)) 
+
+    CALL GETALLCOEFF(NMAX,DEG,WAVETYPE,ALLVELC,ALLPOSC,NKMAX,NISTART,AIMAX,JMAX,AVALS,BVALS)
+    
+    FNAME = 'allcoeff_new.txt'
+    OPEN(UNIT=99,FILE=FNAME,STATUS='UNKNOWN')
+    WRITE(99,*) ALLVELC
+    WRITE(99,*) ALLPOSC
+    WRITE(99,*) AVALS
+    WRITE(99,*) BVALS
+    CLOSE(99)
+
+    PRINT*, 'W VALS:'
+    DO AC = AIMAX-3,AIMAX
+       DO J = 1,3
+          PRINT*, AC, J, ALLVELC(J,AC), ALLPOSC(J,AC)
+       ENDDO
+    ENDDO
+    
+    PRINT*, 'A,B VALS:'
+    DO AC = 1,AIMAX
+       PRINT*, AC, AVALS(AC), BVALS(AC)
+    ENDDO
+  END SUBROUTINE TESTWS
+
+END PROGRAM MAIN
